@@ -1,5 +1,5 @@
 This directory contains tags to apply to Japanese words.
-For example all the words in "jlpt1.txt" will be tagged <jlpt1> in the dictionary.
+For example all the words in "jlpt1.txt" will be tagged `jlpt1` in the dictionary.
 
 ## Sources
 The lists come from the following sources:
