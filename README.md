@@ -1,10 +1,8 @@
-## A YAML syntax for storing language dictionaries
-
-_a paper dictionary in a text file..._
+_...a paper dictionary in a text file..._
 
 Compared with other current dictionary formats([DICT](https://en.wikipedia.org/wiki/DICT),
 [TEI](http://www.tei-c.org/release/doc/tei-p5-doc/en/html/DI.html),
-[slob](https://github.com/itkach/slob)) the goal is to have something that is really
+[slob](https://github.com/itkach/slob)) the goal of the jiji format is to have something that is really
 simple to understand and modify by end users, in the tradition of open source software.
 Ideally it should read like a paper dictionary in a text file, with the YAML syntax
 just used for automatic parsing.
