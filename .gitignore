@@ -3,3 +3,4 @@ venv
 __pycache__
 downloads_cache
 BCCWJ_frequencylist_*
+*.log

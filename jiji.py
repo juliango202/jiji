@@ -1,22 +1,16 @@
 import os
 import yaml
-import sys
 import string
 import uuid
+import logging
 
 from collections import OrderedDict
 
-
-# Somehow yaml needs some strange initialization to work with OrderedDict
-# See https://stackoverflow.com/a/31609484/257272
-def setup_yaml():
-    """ https://stackoverflow.com/a/8661021 """
-    represent_dict_order = lambda self, data:  self.represent_mapping('tag:yaml.org,2002:map', data.items())
-    yaml.add_representer(OrderedDict, represent_dict_order)
-setup_yaml()
+logging.basicConfig(filename='jiji.log',level=logging.DEBUG)
 
 
 class Dictionary:
+    """A class for building language dictionaries in the JIJI format"""
     ABOUT_DICT_KEY = "_about_this_dictionary"
 
     def __init__(self, title, lang_from, lang_to=None, licence=''):
@@ -45,9 +39,8 @@ class Dictionary:
         pass
 
     def save(self, filename):
-        self.validate()
-
         """Write the jiji dictionary to a YAML file"""
+        self.validate()
         with open(filename, 'w') as out:
             # Write about_this_dictionary information
             about = OrderedDict()
@@ -62,7 +55,7 @@ class Dictionary:
                 try:
                     entries[e.get_entry_key()] = e.to_ordered_dict()
                 except EntryWithoutSense:
-                    print("WARN: Entry {} has no sense defined, will skip.".format(e.id), file=sys.stderr)
+                    logging.warning(f"Entry {e.id} has no sense defined, will skip.")
             out.write(yaml.dump(entries, default_flow_style=False, allow_unicode=True))
 
 
@@ -96,13 +89,13 @@ class Entry:
 
     def add_pronunciation(self, pronunciation):
         if ',' in pronunciation:
-            raise RuntimeError("pronunciation must not contain a comma: " + pronunciation)
+            raise RuntimeError(f"pronunciation must not contain a comma: {pronunciation}")
         if pronunciation not in self.pronunciations:
             self.pronunciations.append(pronunciation)
 
     def add_tag(self, tag):
         if ',' in tag:
-            raise RuntimeError("tag must not contain a comma: " + tag)
+            raise RuntimeError(f"tag must not contain a comma: {tag}")
         if tag not in self.tags:
             self.tags.append(tag)
 
@@ -139,10 +132,10 @@ def tag_dictionary(dict, tag_filepath, tag_multiple_entries=True, pick_lowest_ta
             lemma = l.strip()
             entries = dict.get_entries_by_lemma(lemma)
             if not entries:
-                print("WARN: Cannot tag lemma {} because it was not found in the dictionary.".format(lemma), file=sys.stderr)
+                logging.warning(f"Cannot tag lemma {lemma} because it was not found in the dictionary.")
             elif not tag_multiple_entries and len(entries) > 1:
                 entries_ids = ', '.join([e.id for e in entries])
-                print("WARN: Cannot tag lemma {} because there are more than one entry in the dictionary {}.".format(lemma, entries_ids), file=sys.stderr)
+                logging.warning(f"Cannot tag lemma {lemma} because there are more than one entry in the dictionary {entries_ids}.")
             else:
                 lemma_tag = (filename + str(line_number)) if add_line_number else filename
                 for e in entries:
@@ -162,10 +155,19 @@ def tag_entry(entry, tag, pick_lowest_tag):
         return
     # There is already a numbered tag identical to this one, pick the lowest number
     if len(same_numbered_tag) > 1:
-        raise RuntimeError("entry " + entry.id + " has multiple occurrences of numbered tag")
+        raise RuntimeError(f"entry {entry.id} has multiple occurrences of numbered tag")
     same_numbered_tag = same_numbered_tag[0]
     idx = len(tag.rstrip(string.digits))
     factor = 1 if pick_lowest_tag else -1
     if int(tag[idx:]) * factor < int(same_numbered_tag[idx:]) * factor:
         entry.tags.remove(same_numbered_tag)
         entry.add_tag(tag)
+
+
+# Somehow yaml needs some strange initialization to work with OrderedDict
+# See https://stackoverflow.com/a/31609484/257272
+def setup_yaml():
+    """ https://stackoverflow.com/a/8661021 """
+    represent_dict_order = lambda self, data:  self.represent_mapping('tag:yaml.org,2002:map', data.items())
+    yaml.add_representer(OrderedDict, represent_dict_order)
+setup_yaml()

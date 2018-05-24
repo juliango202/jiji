@@ -1,155 +1,74 @@
-
-import sys
 import csv
-import yaml
-import xml.etree.ElementTree as etree
-from collections import OrderedDict
+from statistics import median
+
+from tools.language_level import get_language_level
+
+"""
+This script process the BCCWJ japanese words frequency list, and output 12 lists of words
+grouped by language level to be able to later tag the corresponding entries in jiji dictionaries
+Note there are two frequency lists, based on short unit words(suw) and long unit words(luw)
+for our purpose it's better to use the short unit words version.
+"""
+
+BCCWJ_TSV_FILE_PATH = './BCCWJ_frequencylist_suw_ver1_0.tsv'
+TAGS_DIRECTORY_PATH = '../tags'
+STOPWORDS_FILE = 'stopword.txt'
+RANK_LAST = 1000000
 
 
-# This script process the BCCWJ japanese words frequency list, and the JMDict XML file 
-# and output jiji dictionary data in TSV format
-# See http://www.edrdg.org/jmdict/jmdict_dtd_h.html for JMDict DTD
-# ----------------------------------------------------------------
-# Here is a sample entry for JMdict XML format
-#
-# <entry>
-#     <ent_seq>1000110</ent_seq>
-#     <k_ele>
-#         <keb>ＣＤプレーヤー</keb>
-#         <ke_pri>spec1</ke_pri>
-#     </k_ele>
-#     <k_ele>
-#         <keb>ＣＤプレイヤー</keb>
-#     </k_ele>
-#     <r_ele>
-#         <reb>シーディープレーヤー</reb>
-#         <re_restr>ＣＤプレーヤー</re_restr>
-#         <re_pri>spec1</re_pri>
-#     </r_ele>
-#     <r_ele>
-#         <reb>シーディープレイヤー</reb>
-#         <re_restr>ＣＤプレイヤー</re_restr>
-#     </r_ele>
-#     <sense>
-#         <pos>&n;</pos>
-#         <gloss>CD player</gloss>
-#     </sense>
-#     <sense>
-#         <gloss>audio player</gloss>
-#         <gloss>audio CD player</gloss>
-#     </sense>
-# </entry>
-#
-# We want to keep the word kanji forms(<keb> tag), kana forms(<reb> tag), and meaning(<sense> tag)
+# Read Japanese stopwords into a python dictionary
+stopwords = {}
+with open(f"{TAGS_DIRECTORY_PATH}/{STOPWORDS_FILE}") as f:
+    for l in f.readlines():
+        stopwords[l.strip()] = True
 
 
-if len(sys.argv) < 3:
-    print("Usage: {} <bccwj-file> <english-jmdict-file>".format(sys.argv[0]))
-    sys.exit()
-
-LANG_LEVEL_LIMITS = [0,700,1500,2500,4000,7000,12000,20000,32000,64000,128000,256000]
-#LANG_LEVEL_LIMITS = [0,2093,4187,8375,16751,33503,67006,134012,268024,402036]
+def offset_stopword(rank):
+    """Offset word frequency rankings by a small amount to take into account the missing ranks from ignored stopwords"""
+    return max(1, rank - 160)
 
 
-# Read word frequency TSV file
-freqByKana = dict()
-freqByKanji = dict()
-with open(sys.argv[1], newline='', encoding='utf-8') as freq_file:
-    tsvin = csv.reader(freq_file, delimiter='\t')
-    next(tsvin) # Skip headers row
-    for row in tsvin:
-        #row => rank   lForm   lemma   pos subLemma    wType   frequency   pmw PB_rank PB_frequency    PB_pmw  PM_rank PM_frequency
-        if '■' in row[2]:
-            # some entries are broken, with unicode black square in the lemma, skip them
-            continue
-        rank = int(row[0])
-        # Language level => 10 levels from frequently used to rarely used(exponential nb of words)
-        lang_level = 0
-        for idx, limit in enumerate(LANG_LEVEL_LIMITS):
-            if rank > limit:
-                lang_level = idx + 1
-        freqByKana[row[1]] = lang_level if row[1] not in freqByKana else min(lang_level, freqByKana[row[1]])
-        freqByKanji[row[2]] = lang_level if row[2] not in freqByKanji else min(lang_level, freqByKanji[row[2]])
+def read_bccwj():
+    # Read word frequency TSV file
+    lists = dict()
+    with open(BCCWJ_TSV_FILE_PATH, newline='', encoding='utf-8') as freq_file:
+        tsv_in = csv.reader(freq_file, delimiter='\t')
+        next(tsv_in)  # Skip headers row
+        for row in tsv_in:
+            # row => rank	lForm	lemma	pos	subLemma	wType	frequency	pmw	PB_rank	PB_frequency	PB_pmw...
+            lemma = row[2]
 
-# Construc Jiji dictionary object
-jiji = OrderedDict()
-jiji['title'] = 'Jim\'s Breen Japanese dictionary'
-jiji['licence'] = ''
-jiji['languages'] = OrderedDict([('from', 'Japanese'),('to', 'English')])
+            if '■' in lemma:
+                # some entries are broken, with unicode black square in the lemma, skip them
+                continue
 
-# Read dictionary 
-tree = etree.parse(sys.argv[2])
-root = tree.getroot()    
+            # Ignore lemmas in the stopword list(very very frequent lemmas used for grammar)
+            if lemma in stopwords:
+                continue
 
-# TSV column names
-#print("{}\t{}\t{}\t{}".format('entry', 'lemma', 'frequency', 'english'))
+            overall_rank = int(row[0])
+            magazines_rank = int(row[11]) if row[12] else RANK_LAST
+            chiebukuro_rank = int(row[32]) if row[32] else RANK_LAST
+            blogs_rank = int(row[35]) if row[35] else RANK_LAST
 
-# Loop through the dictionary entries
-jiji_entries = {}
-for entry in root:
-    entryNumber = entry.find('ent_seq').text
-    
-    #for k in entry.findall('./k_ele/keb'):
-        #print(etree.tostring(k, encoding='utf8', method='xml'))
-    kanjiForms = [] if entry.find('./k_ele/keb') is None else [k.text for k in entry.findall('./k_ele/keb')]    
-    kanaForms  = [] if entry.find('./r_ele/reb') is None else [k.text for k in entry.findall('./r_ele/reb')]    
-    
-    jijiForms = kanjiForms
-    if not kanjiForms or any([misc.text == 'word usually written using kana alone' for misc in entry.findall('./sense/misc')]):
-        jijiForms = kanaForms + jijiForms
-        if not kanjiForms:
-            kanaForms = []
-    
-    senses = []
-    for sense in entry.findall('sense'):
-        glosses = [g.text for g in sense.findall('gloss')] 
-        if glosses:
-            senses.append('/'.join(glosses).replace('\n', ''))
-        
-    if not senses:
-        print("ERROR: Entry {} has no meaning defined, will skip.".format(entryNumber), file=sys.stderr)
+            lang_level = int(median([
+                get_language_level(offset_stopword(overall_rank)),
+                get_language_level(offset_stopword(magazines_rank)),
+                get_language_level(offset_stopword(chiebukuro_rank)),
+                get_language_level(offset_stopword(blogs_rank))
+            ]))
+
+            if lang_level not in lists:
+                lists[lang_level] = []
+            lists[lang_level].append(lemma)
+
+    return lists
+
+
+lemmas_by_lang_level = read_bccwj()
+for lang_level, lemmas in lemmas_by_lang_level.items():
+    if lang_level == 13:
+        # Language level 13 contains very infrequent words that should be ignored
         continue
-        
-    ranks = []
-    for f in jijiForms:
-        if f in freqByKanji:
-            ranks.append(freqByKanji[f])
-    if not ranks:       
-        for f in jijiForms:
-            if f in freqByKana:
-                ranks.append(freqByKana[f])
-
-    entryLemmas = ', '.join(jijiForms)
-    entry = OrderedDict()
-    if len(senses) == 1:
-        entry['sense'] = senses[0]
-    else:
-        entry['senses'] = senses
-
-    if ranks:
-        entry["frequency"] = min(ranks)
-        
-    if kanaForms:
-        entry["pronunciation"] = ", ".join(kanaForms)
-        
-    if entryLemmas in jiji_entries:
-        #print("ERROR: Entry {} lemmas {} already exists, will skip.".format(entryNumber, entryLemmas), file=sys.stderr)
-        continue
-    
-    jiji_entries[entryLemmas] = entry
-    
-    
-# Somehow yaml needs some strange initialization to work with OrderedDict
-# See https://stackoverflow.com/a/31609484/257272
-def setup_yaml():
-    """ https://stackoverflow.com/a/8661021 """
-    represent_dict_order = lambda self, data:  self.represent_mapping('tag:yaml.org,2002:map', data.items())
-    yaml.add_representer(OrderedDict, represent_dict_order)    
-setup_yaml()
-
-
-# Print JIJI dictionary infos
-print(yaml.dump({"about_this_dictionary": jiji}, default_flow_style=False, allow_unicode=True), end='')
-
-print(yaml.dump(jiji_entries, default_flow_style=False, allow_unicode=True))
-
+    with open(f"{TAGS_DIRECTORY_PATH}/freq{lang_level:02}.txt", 'w') as out:
+        out.write('\n'.join(lemmas))
