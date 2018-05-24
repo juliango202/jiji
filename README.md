@@ -1,6 +1,6 @@
 ## A YAML syntax for storing language dictionaries
 
-> a paper dictionary in a text file
+_a paper dictionary in a text file..._
 
 Compared with other current dictionary formats([DICT](https://en.wikipedia.org/wiki/DICT),
 [TEI](http://www.tei-c.org/release/doc/tei-p5-doc/en/html/DI.html),
@@ -11,7 +11,7 @@ just used for automatic parsing.
 
 Because YAML is ubiquitous, it's also easy to use and implement for developers.
 
-## Format
+## Format description
 
 Each entry in the dictionary is introduced by one or more lemma separated by a comma(several
 lemmas are necessary when the word can be written in several ways). The entry must have a `sense`
