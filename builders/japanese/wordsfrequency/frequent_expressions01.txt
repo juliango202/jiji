@@ -1,0 +1,24 @@
+# Very frequent expressions to add to freq01 list even if ranking is different in bccwj
+# The difference in ranking could be caused by how those expression are parsed, e.g. 確かに / 確か|に
+
+事
+前に
+実は
+事が出来る
+確かに
+皆様
+お願いします
+為に
+他に
+またまた
+って言う
+失礼します
+時の
+一緒に
+娘さん
+お願い
+これと同じ
+知らない
+ものがある
+今日は
+お客様

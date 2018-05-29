@@ -12,13 +12,15 @@ for our purpose it's better to use the short unit words version.
 
 BCCWJ_TSV_FILE_PATH = './BCCWJ_frequencylist_suw_ver1_0.tsv'
 TAGS_DIRECTORY_PATH = '../tags'
-STOPWORDS_FILE = 'stopword.txt'
+STOPWORDS_TAG_FILE = 'stopword.txt'
+FREQ01_EXPRESSIONS_FILE = 'frequent_expressions01.txt'
+FREQ02_EXPRESSIONS_FILE = 'frequent_expressions02.txt'
 RANK_LAST = 1000000
 
 
 # Read Japanese stopwords into a python dictionary
 stopwords = {}
-with open(f"{TAGS_DIRECTORY_PATH}/{STOPWORDS_FILE}") as f:
+with open(f"{TAGS_DIRECTORY_PATH}/{STOPWORDS_TAG_FILE}") as f:
     for l in f.readlines():
         stopwords[l.strip()] = True
 
@@ -28,8 +30,19 @@ def offset_stopword(rank):
     return max(1, rank - 160)
 
 
+def add_frequent_expressions(file_path, lang_level):
+    """Add frequent expression to frequency lists
+    This is to fix very frequent expressions that do not appear in bccwj because
+    they are parsed differently. Ex: 確かに / 確か|に
+    """
+    with open(file_path) as f:
+        for l in f.readlines():
+            if l.strip() and not l.strip().startswith('#'):
+                lemmas_by_lang_level[lang_level].append(l.strip())
+
+
 def read_bccwj():
-    # Read word frequency TSV file
+    """Read word frequency TSV file"""
     lists = dict()
     with open(BCCWJ_TSV_FILE_PATH, newline='', encoding='utf-8') as freq_file:
         tsv_in = csv.reader(freq_file, delimiter='\t')
@@ -66,9 +79,13 @@ def read_bccwj():
 
 
 lemmas_by_lang_level = read_bccwj()
+add_frequent_expressions(FREQ01_EXPRESSIONS_FILE, 1)
+add_frequent_expressions(FREQ02_EXPRESSIONS_FILE, 2)
+
+# Write frequency lists in tags/ folder
 for lang_level, lemmas in lemmas_by_lang_level.items():
     if lang_level == 13:
         # Language level 13 contains very infrequent words that should be ignored
         continue
     with open(f"{TAGS_DIRECTORY_PATH}/freq{lang_level:02}.txt", 'w') as out:
-        out.write('\n'.join(lemmas))
+        out.write('\n'.join(sorted(set(lemmas))))
