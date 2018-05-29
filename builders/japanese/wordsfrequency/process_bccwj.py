@@ -59,13 +59,14 @@ def read_bccwj():
             if lemma in stopwords:
                 continue
 
-            overall_rank = int(row[0])
+            # overall_rank = int(row[0])
             magazines_rank = int(row[11]) if row[12] else RANK_LAST
+            manuals_rank = int(row[23]) if row[23] else RANK_LAST
             chiebukuro_rank = int(row[32]) if row[32] else RANK_LAST
             blogs_rank = int(row[35]) if row[35] else RANK_LAST
 
             lang_level = int(median([
-                get_language_level(offset_stopword(overall_rank)),
+                get_language_level(offset_stopword(manuals_rank)),
                 get_language_level(offset_stopword(magazines_rank)),
                 get_language_level(offset_stopword(chiebukuro_rank)),
                 get_language_level(offset_stopword(blogs_rank))
