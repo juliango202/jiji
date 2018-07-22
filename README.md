@@ -61,3 +61,5 @@ _about_this_dictionary:
 Add more builders:
 - Use wiktionary parser => https://github.com/juditacs/wikt2dict
 - from wikdict http://download.wikdict.com/dictionaries/sqlite/2_2017-11/ (why spanish "acaudalado" is not defined ?)
+- eudic (https://www.francochinois.com)
+- See https://en.wiktionary.org/wiki/User:Matthias_Buchmeier#French-English for automatic dictionary generation from Wiktionaries
